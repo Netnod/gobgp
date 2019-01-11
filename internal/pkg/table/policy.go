@@ -1670,12 +1670,24 @@ func (c *CommunityCondition) Option() MatchOption {
 	return c.option
 }
 
-func (c *CommunityCondition) Evaluate(path *Path, _ *PolicyOptions) bool {
+func (c *CommunityCondition) Evaluate(path *Path, po *PolicyOptions) bool {
+
+	// TODO: FIX ME
 	cs := path.GetCommunities()
 	result := false
 	for _, x := range c.set.list {
 		result = false
 		for _, y := range cs {
+
+			var as uint32 = path.GetSourceAs()
+			if po != nil && po.Info != nil {
+				as = po.Info.AS
+			}
+
+			if _x , err := regexp.Compile(strings.Replace(x.String(), "{{local-as}}", strconv.Itoa(int(as)),-1)); err == nil {
+				x = _x
+			}
+
 			if x.MatchString(fmt.Sprintf("%d:%d", y>>16, y&0x0000ffff)) {
 				result = true
 				break
