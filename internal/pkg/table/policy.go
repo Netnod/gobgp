@@ -221,6 +221,10 @@ const (
 	ASPATH_REGEXP_MAGIC = "(^|[,{}() ]|$)"
 )
 
+
+const (
+	PATTERN_AS = "{{as}}"
+)
 type DefinedSet interface {
 	Type() DefinedType
 	Name() string
@@ -1598,7 +1602,9 @@ func (c *AsPathCondition) Option() MatchOption {
 	return c.option
 }
 
-func (c *AsPathCondition) Evaluate(path *Path, _ *PolicyOptions) bool {
+
+func (c *AsPathCondition) Evaluate(path *Path, po *PolicyOptions) bool {
+
 	if len(c.set.singleList) > 0 {
 		aspath := path.GetAsSeqList()
 		for _, m := range c.set.singleList {
@@ -1672,19 +1678,18 @@ func (c *CommunityCondition) Option() MatchOption {
 
 func (c *CommunityCondition) Evaluate(path *Path, po *PolicyOptions) bool {
 
-	// TODO: FIX ME
 	cs := path.GetCommunities()
 	result := false
 	for _, x := range c.set.list {
 		result = false
 		for _, y := range cs {
 
-			var as uint32 = path.GetSourceAs()
+			var as uint32 = path.GetAsList()[0]
 			if po != nil && po.Info != nil {
 				as = po.Info.AS
 			}
 
-			if _x , err := regexp.Compile(strings.Replace(x.String(), "{{local-as}}", strconv.Itoa(int(as)),-1)); err == nil {
+			if _x , err := regexp.Compile(strings.Replace(x.String(), PATTERN_AS, strconv.Itoa(int(as)),-1)); err == nil {
 				x = _x
 			}
 
@@ -1809,12 +1814,20 @@ func (c *LargeCommunityCondition) Option() MatchOption {
 	return c.option
 }
 
-func (c *LargeCommunityCondition) Evaluate(path *Path, _ *PolicyOptions) bool {
+func (c *LargeCommunityCondition) Evaluate(path *Path, po *PolicyOptions) bool {
 	result := false
 	cs := path.GetLargeCommunities()
 	for _, x := range c.set.list {
 		result = false
 		for _, y := range cs {
+			var as uint32 = path.GetAsList()[0]
+			if po != nil && po.Info != nil {
+				as = po.Info.AS
+			}
+			if _x , err := regexp.Compile(strings.Replace(x.String(), PATTERN_AS, strconv.Itoa(int(as)),-1)); err == nil {
+				x = _x
+			}
+
 			if x.MatchString(y.String()) {
 				result = true
 				break
