@@ -2984,6 +2984,18 @@ type Policy struct {
 	Statements []*Statement
 }
 
+func (p *Policy) Evaluate(path *Path, options *PolicyOptions) (RouteType, *Statement) {
+	for _, stmt := range p.Statements {
+		var result RouteType
+		p := path.Clone(false)
+		result, p = stmt.Apply(p, options)
+		if result != ROUTE_TYPE_NONE {
+			return result, stmt
+		}
+	}
+	return ROUTE_TYPE_NONE, nil
+}
+
 // Compare path with a policy's condition in stored order in the policy.
 // If a condition match, then this function stops evaluation and
 // subsequent conditions are skipped.
@@ -3106,6 +3118,38 @@ type RoutingPolicy struct {
 	statementMap  map[string]*Statement
 	assignmentMap map[string]*Assignment
 	mu            sync.RWMutex
+}
+
+
+func (r *RoutingPolicy) Evaluate(id string, dir PolicyDirection, before *Path, options *PolicyOptions) (RouteType, *Policy, *Statement) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	if before == nil {
+		return ROUTE_TYPE_NONE, nil, nil
+	}
+
+	if before.IsWithdraw {
+		return ROUTE_TYPE_NONE, nil, nil
+	}
+	result := ROUTE_TYPE_NONE
+
+	var rp *Policy
+	var stmt *Statement
+
+	for _, p := range r.getPolicy(id, dir) {
+
+		result, stmt = p.Evaluate(before, options)
+		if result != ROUTE_TYPE_NONE {
+			rp = p
+			break
+		}
+	}
+	if result == ROUTE_TYPE_NONE {
+		result = r.getDefaultPolicy(id, dir)
+	}
+
+	return result, rp, stmt;
 }
 
 func (r *RoutingPolicy) ApplyPolicy(id string, dir PolicyDirection, before *Path, options *PolicyOptions) *Path {

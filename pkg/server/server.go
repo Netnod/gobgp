@@ -2363,13 +2363,38 @@ func (s *BgpServer) ListPath(ctx context.Context, r *api.ListPathRequest, fn fun
 
 	idx := 0
 	err = func() error {
+
 		for _, dst := range tbl.GetDestinations() {
+
 			d := api.Destination{
 				Prefix: dst.GetNlri().String(),
 				Paths:  make([]*api.Path, 0, len(dst.GetAllKnownPathList())),
 			}
 			for i, path := range dst.GetAllKnownPathList() {
-				p := toPathApi(path, getValidation(v, idx))
+
+				peer, _ := s.neighborMap[path.GetSource().Address.String()]
+
+				rs := peer != nil && peer.isRouteServerClient()
+				tableId := table.GLOBAL_RIB_NAME
+				if rs {
+					tableId = peer.TableID()
+				}
+
+				policyOptions := &table.PolicyOptions{}
+
+				if !rs && peer != nil {
+					peer.fsm.lock.RLock()
+					policyOptions.Info = peer.fsm.peerInfo
+					peer.fsm.lock.RUnlock()
+				}
+				_, policy, statement := s.policy.Evaluate(tableId, table.POLICY_DIRECTION_IMPORT, path, policyOptions)
+				
+				if v := s.roaManager.validate(path); v != nil {
+					policyOptions.ValidationResult = v
+				}
+
+
+				p := toPathApi(path, getValidation(v, idx), policy, statement)
 				idx++
 				if i == 0 && !table.SelectionOptions.DisableBestPathSelection {
 					switch r.TableType {
@@ -3533,7 +3558,7 @@ func (s *BgpServer) MonitorTable(ctx context.Context, r *api.MonitorTableRequest
 					case <-ctx.Done():
 						return
 					default:
-						fn(toPathApi(path, nil))
+						fn(toPathApi(path, nil, nil, nil))
 					}
 				}
 			case <-ctx.Done():

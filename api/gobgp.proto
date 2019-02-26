@@ -543,6 +543,7 @@ message Path {
   uint32 local_identifier = 19;
   bytes nlri_binary = 20;
   repeated bytes pattrs_binary = 21;
+  Policy filtered_reason = 22;
 }
 
 message Destination {
