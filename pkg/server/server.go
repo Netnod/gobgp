@@ -2372,7 +2372,7 @@ func (s *BgpServer) ListPath(ctx context.Context, r *api.ListPathRequest, fn fun
 			}
 			for i, path := range dst.GetAllKnownPathList() {
 
-				peer, _ := s.neighborMap[path.GetSource().Address.String()]
+				peer, _ := s.neighborMap[r.Name]
 
 				rs := peer != nil && peer.isRouteServerClient()
 				tableId := table.GLOBAL_RIB_NAME
@@ -2387,7 +2387,17 @@ func (s *BgpServer) ListPath(ctx context.Context, r *api.ListPathRequest, fn fun
 					policyOptions.Info = peer.fsm.peerInfo
 					peer.fsm.lock.RUnlock()
 				}
-				_, policy, statement := s.policy.Evaluate(tableId, table.POLICY_DIRECTION_IMPORT, path, policyOptions)
+
+				var direction table.PolicyDirection = table.POLICY_DIRECTION_NONE
+				switch r.TableType {
+				case api.TableType_ADJ_IN:
+					direction = table.POLICY_DIRECTION_IMPORT
+				default:
+					direction = table.POLICY_DIRECTION_EXPORT
+				}
+
+
+				_, policy, statement := s.policy.Evaluate(tableId, direction, path, policyOptions)
 				
 				if v := s.roaManager.validate(path); v != nil {
 					policyOptions.ValidationResult = v

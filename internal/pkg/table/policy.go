@@ -2986,6 +2986,7 @@ type Policy struct {
 
 func (p *Policy) Evaluate(path *Path, options *PolicyOptions) (RouteType, *Statement) {
 	for _, stmt := range p.Statements {
+
 		var result RouteType
 		p := path.Clone(false)
 		result, p = stmt.Apply(p, options)
@@ -3136,9 +3137,7 @@ func (r *RoutingPolicy) Evaluate(id string, dir PolicyDirection, before *Path, o
 
 	var rp *Policy
 	var stmt *Statement
-
 	for _, p := range r.getPolicy(id, dir) {
-
 		result, stmt = p.Evaluate(before, options)
 		if result != ROUTE_TYPE_NONE {
 			rp = p

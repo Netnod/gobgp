@@ -730,8 +730,8 @@ func showPrefixDetails(p *api.Path, shownAs map[uint32]struct{}) error {
 	} else {
 		state = "Accepted"
 	}
-	filterPolicy := p.FilteredReason
-	filterStatement := filterPolicy.Statements[0]
+
+	
 	asList := asPath[len(asPath)-1].GetAS()
 	origin := asList[len(asList)-1]
 
@@ -739,6 +739,8 @@ func showPrefixDetails(p *api.Path, shownAs map[uint32]struct{}) error {
 	fmt.Printf("Target Prefix: %s, AS: %d\n", nlri.String(), origin)
 	fmt.Printf("  This route is %s\n", state)
 	if p.Filtered {
+		filterPolicy := p.FilteredReason
+		filterStatement := filterPolicy.Statements[0]
 		fmt.Printf("\n  Policy: %s\n", filterPolicy.Name)
 		fmt.Printf("  Statement: %s\n", filterStatement.Name)
 	}
