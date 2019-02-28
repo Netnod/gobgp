@@ -1449,7 +1449,7 @@ func (s *BgpServer) handleFSMMessage(peer *peer, e *fsmMsg) {
 			if notEstablished || beforeUptime {
 				return
 			}
-			pathList, eor, notification := peer.handleUpdate(e)
+			pathList, eor, notification := peer.handleUpdate(e,s)
 			if notification != nil {
 				sendfsmOutgoingMsg(peer, nil, notification, true)
 				return
