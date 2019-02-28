@@ -893,6 +893,7 @@ func showNeighborRib(r string, name string, args []string) error {
 		Name:      name,
 		Prefixes:  filter,
 		SortType:  api.ListPathRequest_PREFIX,
+		PolicyOptions: &api.ListPathRequest_PolicyOptions{ApplyPolicys: (detailTarget != "")},
 	})
 	if err != nil {
 		return err
