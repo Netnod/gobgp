@@ -2374,7 +2374,7 @@ func (s *BgpServer) ListPath(ctx context.Context, r *api.ListPathRequest, fn fun
 				var policy *table.Policy
 				var statement *table.Statement
 
-				if r.PolicyOptions != nil && r.PolicyOptions.ApplyPolicys  {
+				if r.PolicyOptions != nil && (r.PolicyOptions.ApplyPolicies || r.PolicyOptions.PolicyDetails)  {
 					peer, _ := s.neighborMap[r.Name]
 
 					rs := peer != nil && peer.isRouteServerClient()
