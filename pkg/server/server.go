@@ -598,11 +598,11 @@ func (s *BgpServer) filterpath(peer *peer, path, old *table.Path) *table.Path {
 	}
 	peer.fsm.lock.RUnlock()
 
-	path = peer.policy.ApplyPolicy(peer.TableID(), table.POLICY_DIRECTION_EXPORT, path, options)
+	path, _, _ = peer.policy.ApplyPolicy(peer.TableID(), table.POLICY_DIRECTION_EXPORT, path, options)
 	// When 'path' is filtered (path == nil), check 'old' has been sent to this peer.
 	// If it has, send withdrawal to the peer.
 	if path == nil && old != nil {
-		o := peer.policy.ApplyPolicy(peer.TableID(), table.POLICY_DIRECTION_EXPORT, old, options)
+		o, _, _ := peer.policy.ApplyPolicy(peer.TableID(), table.POLICY_DIRECTION_EXPORT, old, options)
 		if o != nil {
 			path = old.Clone(true)
 		}
@@ -972,7 +972,7 @@ func (s *BgpServer) propagateUpdate(peer *peer, pathList []*table.Path) {
 			policyOptions.ValidationResult = v
 		}
 
-		if p := s.policy.ApplyPolicy(tableId, table.POLICY_DIRECTION_IMPORT, path, policyOptions); p != nil {
+		if p,_,_ := s.policy.ApplyPolicy(tableId, table.POLICY_DIRECTION_IMPORT, path, policyOptions); p != nil {
 			path = p
 		} else {
 			path = path.Clone(true)
@@ -2371,36 +2371,39 @@ func (s *BgpServer) ListPath(ctx context.Context, r *api.ListPathRequest, fn fun
 				Paths:  make([]*api.Path, 0, len(dst.GetAllKnownPathList())),
 			}
 			for i, path := range dst.GetAllKnownPathList() {
+				var policy *table.Policy
+				var statement *table.Statement
 
-				peer, _ := s.neighborMap[r.Name]
+				if r.PolicyOptions != nil && (r.PolicyOptions.ApplyPolicies || r.PolicyOptions.PolicyDetails)  {
+					peer, _ := s.neighborMap[r.Name]
 
-				rs := peer != nil && peer.isRouteServerClient()
-				tableId := table.GLOBAL_RIB_NAME
-				if rs {
-					tableId = peer.TableID()
-				}
+					rs := peer != nil && peer.isRouteServerClient()
+					tableId := table.GLOBAL_RIB_NAME
+					if rs {
+						tableId = peer.TableID()
+					}
 
-				policyOptions := &table.PolicyOptions{}
+					policyOptions := &table.PolicyOptions{}
 
-				if !rs && peer != nil {
-					peer.fsm.lock.RLock()
-					policyOptions.Info = peer.fsm.peerInfo
-					peer.fsm.lock.RUnlock()
-				}
+					if !rs && peer != nil {
+						peer.fsm.lock.RLock()
+						policyOptions.Info = peer.fsm.peerInfo
+						peer.fsm.lock.RUnlock()
+					}
 
-				var direction table.PolicyDirection = table.POLICY_DIRECTION_NONE
-				switch r.TableType {
-				case api.TableType_ADJ_IN:
-					direction = table.POLICY_DIRECTION_IMPORT
-				default:
-					direction = table.POLICY_DIRECTION_EXPORT
-				}
+					var direction table.PolicyDirection = table.POLICY_DIRECTION_NONE
+					switch r.TableType {
+					case api.TableType_ADJ_IN:
+						direction = table.POLICY_DIRECTION_IMPORT
+					default:
+						direction = table.POLICY_DIRECTION_EXPORT
+					}
 
-
-				_, policy, statement := s.policy.Evaluate(tableId, direction, path, policyOptions)
-				
-				if v := s.roaManager.validate(path); v != nil {
-					policyOptions.ValidationResult = v
+					_, policy, statement = s.policy.ApplyPolicy(tableId, direction, path, policyOptions)
+					
+					if v := s.roaManager.validate(path); v != nil {
+						policyOptions.ValidationResult = v
+					}
 				}
 
 

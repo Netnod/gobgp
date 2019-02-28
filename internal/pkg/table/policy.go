@@ -2984,31 +2984,19 @@ type Policy struct {
 	Statements []*Statement
 }
 
-func (p *Policy) Evaluate(path *Path, options *PolicyOptions) (RouteType, *Statement) {
-	for _, stmt := range p.Statements {
-
-		var result RouteType
-		p := path.Clone(false)
-		result, p = stmt.Apply(p, options)
-		if result != ROUTE_TYPE_NONE {
-			return result, stmt
-		}
-	}
-	return ROUTE_TYPE_NONE, nil
-}
 
 // Compare path with a policy's condition in stored order in the policy.
 // If a condition match, then this function stops evaluation and
 // subsequent conditions are skipped.
-func (p *Policy) Apply(path *Path, options *PolicyOptions) (RouteType, *Path) {
+func (p *Policy) Apply(path *Path, options *PolicyOptions) (RouteType, *Path, *Statement) {
 	for _, stmt := range p.Statements {
 		var result RouteType
 		result, path = stmt.Apply(path, options)
 		if result != ROUTE_TYPE_NONE {
-			return result, path
+			return result, path, stmt
 		}
 	}
-	return ROUTE_TYPE_NONE, path
+	return ROUTE_TYPE_NONE, path, nil
 }
 
 func (p *Policy) ToConfig() *config.PolicyDefinition {
@@ -3121,52 +3109,27 @@ type RoutingPolicy struct {
 	mu            sync.RWMutex
 }
 
-
-func (r *RoutingPolicy) Evaluate(id string, dir PolicyDirection, before *Path, options *PolicyOptions) (RouteType, *Policy, *Statement) {
+func (r *RoutingPolicy) ApplyPolicy(id string, dir PolicyDirection, before *Path, options *PolicyOptions) (*Path,*Policy, *Statement) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
 	if before == nil {
-		return ROUTE_TYPE_NONE, nil, nil
+		return nil, nil, nil
 	}
 
 	if before.IsWithdraw {
-		return ROUTE_TYPE_NONE, nil, nil
+		return before, nil, nil
 	}
-	result := ROUTE_TYPE_NONE
 
-	var rp *Policy
+	result := ROUTE_TYPE_NONE
 	var stmt *Statement
-	for _, p := range r.getPolicy(id, dir) {
-		result, stmt = p.Evaluate(before, options)
-		if result != ROUTE_TYPE_NONE {
-			rp = p
-			break
-		}
-	}
-	if result == ROUTE_TYPE_NONE {
-		result = r.getDefaultPolicy(id, dir)
-	}
+	var policy *Policy
 
-	return result, rp, stmt;
-}
-
-func (r *RoutingPolicy) ApplyPolicy(id string, dir PolicyDirection, before *Path, options *PolicyOptions) *Path {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	if before == nil {
-		return nil
-	}
-
-	if before.IsWithdraw {
-		return before
-	}
-	result := ROUTE_TYPE_NONE
 	after := before
 	for _, p := range r.getPolicy(id, dir) {
-		result, after = p.Apply(after, options)
+		result, after, stmt = p.Apply(after, options)
 		if result != ROUTE_TYPE_NONE {
+			policy = p
 			break
 		}
 	}
@@ -3175,9 +3138,9 @@ func (r *RoutingPolicy) ApplyPolicy(id string, dir PolicyDirection, before *Path
 	}
 	switch result {
 	case ROUTE_TYPE_ACCEPT:
-		return after
+		return after, policy, stmt
 	default:
-		return nil
+		return nil, policy, stmt
 	}
 }
 
