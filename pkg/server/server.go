@@ -2399,23 +2399,35 @@ func (s *BgpServer) ListPath(ctx context.Context, r *api.ListPathRequest, fn fun
 						direction = table.POLICY_DIRECTION_EXPORT
 					}
 
-					_, policy, statement = s.policy.ApplyPolicy(tableId, direction, path, policyOptions)
-					
-					if v := s.roaManager.validate(path); v != nil {
-						policyOptions.ValidationResult = v
+					var p *table.Path
+
+					p, policy, statement = s.policy.ApplyPolicy(tableId, direction, path, policyOptions)
+					if r.PolicyOptions.ApplyPolicies {
+						if p == nil && !r.PolicyOptions.ApplyRouteDisposition {
+							p = path
+						}
+
+						path = p
+					}
+
+					if path != nil {
+						if v := s.roaManager.validate(path); v != nil {
+							policyOptions.ValidationResult = v
+						}
 					}
 				}
 
-
-				p := toPathApi(path, getValidation(v, idx), policy, statement)
-				idx++
-				if i == 0 && !table.SelectionOptions.DisableBestPathSelection {
-					switch r.TableType {
-					case api.TableType_LOCAL, api.TableType_GLOBAL:
-						p.Best = true
+				if path != nil {
+					p := toPathApi(path, getValidation(v, idx), policy, statement)
+					idx++
+					if i == 0 && !table.SelectionOptions.DisableBestPathSelection {
+						switch r.TableType {
+						case api.TableType_LOCAL, api.TableType_GLOBAL:
+							p.Best = true
+						}
 					}
+					d.Paths = append(d.Paths, p)
 				}
-				d.Paths = append(d.Paths, p)
 			}
 			select {
 			case <-ctx.Done():
