@@ -2385,6 +2385,10 @@ func (s *BgpServer) ListPath(ctx context.Context, r *api.ListPathRequest, fn fun
 
 					policyOptions := &table.PolicyOptions{}
 
+					if v := s.roaManager.validate(path); v != nil {
+						policyOptions.ValidationResult = v
+					}
+
 					if !rs && peer != nil {
 						peer.fsm.lock.RLock()
 						policyOptions.Info = peer.fsm.peerInfo
@@ -2400,20 +2404,12 @@ func (s *BgpServer) ListPath(ctx context.Context, r *api.ListPathRequest, fn fun
 					}
 
 					var p *table.Path
-
 					p, policy, statement = s.policy.ApplyPolicy(tableId, direction, path, policyOptions)
 					if r.PolicyOptions.ApplyPolicies {
 						if p == nil && !r.PolicyOptions.ApplyRouteDisposition {
 							p = path
 						}
-
 						path = p
-					}
-
-					if path != nil {
-						if v := s.roaManager.validate(path); v != nil {
-							policyOptions.ValidationResult = v
-						}
 					}
 				}
 

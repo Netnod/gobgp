@@ -887,13 +887,20 @@ func showNeighborRib(r string, name string, args []string) error {
 		t = api.TableType_VRF
 	}
 
+	var policyOptions api.ListPathRequest_PolicyOptions
+
+
+	if detailTarget != "" {
+		policyOptions.ApplyPolicies = true
+	}
+
 	stream, err := client.ListPath(ctx, &api.ListPathRequest{
 		TableType: t,
 		Family:    family,
 		Name:      name,
 		Prefixes:  filter,
 		SortType:  api.ListPathRequest_PREFIX,
-		PolicyOptions: &api.ListPathRequest_PolicyOptions{ApplyPolicys: (detailTarget != "")},
+		PolicyOptions: &policyOptions,
 	})
 	if err != nil {
 		return err
