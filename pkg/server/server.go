@@ -598,11 +598,11 @@ func (s *BgpServer) filterpath(peer *peer, path, old *table.Path) *table.Path {
 	}
 	peer.fsm.lock.RUnlock()
 
-	path = peer.policy.ApplyPolicy(peer.TableID(), table.POLICY_DIRECTION_EXPORT, path, options)
+	path, _, _ = peer.policy.ApplyPolicy(peer.TableID(), table.POLICY_DIRECTION_EXPORT, path, options)
 	// When 'path' is filtered (path == nil), check 'old' has been sent to this peer.
 	// If it has, send withdrawal to the peer.
 	if path == nil && old != nil {
-		o := peer.policy.ApplyPolicy(peer.TableID(), table.POLICY_DIRECTION_EXPORT, old, options)
+		o, _, _ := peer.policy.ApplyPolicy(peer.TableID(), table.POLICY_DIRECTION_EXPORT, old, options)
 		if o != nil {
 			path = old.Clone(true)
 		}
@@ -972,7 +972,7 @@ func (s *BgpServer) propagateUpdate(peer *peer, pathList []*table.Path) {
 			policyOptions.ValidationResult = v
 		}
 
-		if p := s.policy.ApplyPolicy(tableId, table.POLICY_DIRECTION_IMPORT, path, policyOptions); p != nil {
+		if p,_,_ := s.policy.ApplyPolicy(tableId, table.POLICY_DIRECTION_IMPORT, path, policyOptions); p != nil {
 			path = p
 		} else {
 			path = path.Clone(true)
@@ -2399,7 +2399,7 @@ func (s *BgpServer) ListPath(ctx context.Context, r *api.ListPathRequest, fn fun
 						direction = table.POLICY_DIRECTION_EXPORT
 					}
 
-					_, policy, statement = s.policy.Evaluate(tableId, direction, path, policyOptions)
+					_, policy, statement = s.policy.ApplyPolicy(tableId, direction, path, policyOptions)
 					
 					if v := s.roaManager.validate(path); v != nil {
 						policyOptions.ValidationResult = v
