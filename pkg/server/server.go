@@ -2371,36 +2371,39 @@ func (s *BgpServer) ListPath(ctx context.Context, r *api.ListPathRequest, fn fun
 				Paths:  make([]*api.Path, 0, len(dst.GetAllKnownPathList())),
 			}
 			for i, path := range dst.GetAllKnownPathList() {
+				var policy *table.Policy
+				var statement *table.Statement
 
-				peer, _ := s.neighborMap[r.Name]
+				if r.PolicyOptions != nil && r.PolicyOptions.ApplyPolicys  {
+					peer, _ := s.neighborMap[r.Name]
 
-				rs := peer != nil && peer.isRouteServerClient()
-				tableId := table.GLOBAL_RIB_NAME
-				if rs {
-					tableId = peer.TableID()
-				}
+					rs := peer != nil && peer.isRouteServerClient()
+					tableId := table.GLOBAL_RIB_NAME
+					if rs {
+						tableId = peer.TableID()
+					}
 
-				policyOptions := &table.PolicyOptions{}
+					policyOptions := &table.PolicyOptions{}
 
-				if !rs && peer != nil {
-					peer.fsm.lock.RLock()
-					policyOptions.Info = peer.fsm.peerInfo
-					peer.fsm.lock.RUnlock()
-				}
+					if !rs && peer != nil {
+						peer.fsm.lock.RLock()
+						policyOptions.Info = peer.fsm.peerInfo
+						peer.fsm.lock.RUnlock()
+					}
 
-				var direction table.PolicyDirection = table.POLICY_DIRECTION_NONE
-				switch r.TableType {
-				case api.TableType_ADJ_IN:
-					direction = table.POLICY_DIRECTION_IMPORT
-				default:
-					direction = table.POLICY_DIRECTION_EXPORT
-				}
+					var direction table.PolicyDirection = table.POLICY_DIRECTION_NONE
+					switch r.TableType {
+					case api.TableType_ADJ_IN:
+						direction = table.POLICY_DIRECTION_IMPORT
+					default:
+						direction = table.POLICY_DIRECTION_EXPORT
+					}
 
-
-				_, policy, statement := s.policy.Evaluate(tableId, direction, path, policyOptions)
-				
-				if v := s.roaManager.validate(path); v != nil {
-					policyOptions.ValidationResult = v
+					_, policy, statement = s.policy.Evaluate(tableId, direction, path, policyOptions)
+					
+					if v := s.roaManager.validate(path); v != nil {
+						policyOptions.ValidationResult = v
+					}
 				}
 
 
