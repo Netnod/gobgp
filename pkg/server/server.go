@@ -33,6 +33,7 @@ import (
 	api "github.com/osrg/gobgp/api"
 	"github.com/osrg/gobgp/internal/pkg/apiutil"
 	"github.com/osrg/gobgp/internal/pkg/config"
+	"github.com/osrg/gobgp/internal/pkg/version"
 	"github.com/osrg/gobgp/internal/pkg/table"
 	"github.com/osrg/gobgp/internal/pkg/zebra"
 	"github.com/osrg/gobgp/pkg/packet/bgp"
@@ -2670,10 +2671,12 @@ func (s *BgpServer) GetBgp(ctx context.Context, r *api.GetBgpRequest) (*api.GetB
 				StartedAt: config.ProtoTimestamp(s.status.startedAt),
 				ReconfiguredAt: config.ProtoTimestamp(s.status.reconfiguredAt),
 				Version: &api.Version{
-					Major: 2,
-					Minor: 4,
-					Patch: 0,
-					Version: "2.4.0",
+					Major: uint32(version.MAJOR),
+					Minor: uint32(version.MINOR),
+					Patch: uint32(version.PATCH),
+					Version: version.Version(),
+					Sha: version.SHA,
+					Tag: version.TAG,
 				},
 			},
 		}
